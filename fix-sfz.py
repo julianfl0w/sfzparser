@@ -15,19 +15,24 @@ def main(args=None):
     fixed = False
     for name, sect in parser.sections:
         # fix sample filename without directory prefix
-        if name == 'region' and 'sample' in sect and isdir(bn) and '/' not in sect['sample']:
-            print("Setting prefix for sample '{}' to '{}'.".format(sect['sample'], bn))
-            sect['sample'] = bn + '/' + sect['sample']
+        if (
+            name == "region"
+            and "sample" in sect
+            and isdir(bn)
+            and "/" not in sect["sample"]
+        ):
+            print("Setting prefix for sample '{}' to '{}'.".format(sect["sample"], bn))
+            sect["sample"] = bn + "/" + sect["sample"]
             fixed = True
 
     if fixed:
-        if not exists(fn + '.bak'):
-            shutil.copy(fn, fn + '.bak')
+        if not exists(fn + ".bak"):
+            shutil.copy(fn, fn + ".bak")
 
-        with open(args[0], 'w') as sfz:
+        with open(args[0], "w") as sfz:
             for name, sect in parser.sections:
-                if name == 'comment':
-                    sfz.write(sect + '\n')
+                if name == "comment":
+                    sfz.write(sect + "\n")
                 else:
                     sfz.write("<{}>\n".format(name))
                     for key, value in sorted(sect.items()):
@@ -36,6 +41,7 @@ def main(args=None):
         print("Nothing to fix.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     sys.exit(main(sys.argv[1:] or 0))

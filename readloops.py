@@ -16,4 +16,8 @@ for path in sys.argv[1:]:
         if wav.smpl:
             print("Root note: {}".format(wav.smpl.midi_unity_note))
             for loop in wav.smpl.loops:
-                print("Loop #{cue_point_id} - start: {start:10d} end: {end:10d}".format(**loop))
+                print(
+                    "Loop #{cue_point_id} - start: {start:10d} end: {end:10d}".format(
+                        **loop
+                    )
+                )

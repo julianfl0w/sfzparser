@@ -10,7 +10,14 @@ import sys
 from collections import namedtuple
 from itertools import groupby
 from operator import attrgetter, itemgetter
-from os.path import abspath, basename, exists, join as pathjoin, sep as pathsep, splitext
+from os.path import (
+    abspath,
+    basename,
+    exists,
+    join as pathjoin,
+    sep as pathsep,
+    splitext,
+)
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -50,11 +57,7 @@ sample={{ sample.path }}
 {% endfor %}
 {% endfor %}
 """
-FILE_TYPES = {
-    "wav": ("wav",),
-    "aif": ("aif", "aiff"),
-    "flac": ("flac",),
-}
+FILE_TYPES = {"wav": ("wav",), "aif": ("aif", "aiff"), "flac": ("flac",)}
 RX_NOTE_INFO = (
     r"(?P<basenote>[abcdefgh])(?P<accidental>[#b]|es|is)?(-?(?P<octave>\d+))?"
     r"\s+(?P<layer>pp|p|mp|mf|f|ff)\s+(?P<sequence_no>\d)"
@@ -193,7 +196,7 @@ def main(args=None):
         "-r",
         "--regex",
         default=RX_NOTE_INFO,
-        help="Regex for parsing sample root note, velocity and round-robin sequence from filename."
+        help="Regex for parsing sample root note, velocity and round-robin sequence from filename.",
     )
     ap.add_argument(
         "-i",
