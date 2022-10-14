@@ -28,7 +28,7 @@ def sfz_note_to_midi_key(sfz_note, german=False):
 
     letter = sfz_note[0].lower()
     if letter.isdigit():
-        return sfz_note
+        return eval(sfz_note)
 
     if german:
         # TODO: Handle sharps (e.g. "Fis") and flats (e.g. "Es")
@@ -38,9 +38,10 @@ def sfz_note_to_midi_key(sfz_note, german=False):
             letter = "b"
 
     octave = int(sfz_note[-1])
-    return max(
+    midikey = max(
         0, min(127, SFZ_NOTE_LETTER_OFFSET[letter] + ((octave + 1) * 12) + accidental)
     )
+    return midikey
 
 
 def freq_to_cutoff(param):
@@ -126,7 +127,7 @@ class SFZInstrument:
         # check if binary file has already been exported
 
         binFilename = os.path.join(
-            self.sfzFilenameBasedir, "_" + platform_simple + ".bin"
+            self.sfzFilename +"_" + platform_simple + ".bin"
         )
         if os.path.exists(binFilename):
             with open(binFilename, "rb") as f:
