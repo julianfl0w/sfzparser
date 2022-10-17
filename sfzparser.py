@@ -14,6 +14,8 @@ import pickle
 from tqdm import tqdm
 import json
 import librosa
+from pedalboard.io import AudioFile
+import cv2
 
 SFZ_NOTE_LETTER_OFFSET = {"a": 9, "b": 11, "c": 0, "d": 2, "e": 4, "f": 5, "g": 7}
 
@@ -118,7 +120,8 @@ class SFZInstrument:
         CHANNELS,
         SAMPLE_FREQUENCY,
     ):
-
+        self.CHANNELS = CHANNELS
+        self.SAMPLE_FREQUENCY = SAMPLE_FREQUENCY
         self.sfzFilename = patch.sfzFilename
         self.sfzFilenameBasedir = os.path.dirname(patch.sfzFilename)
         self.samplesBasedir = Path(patch.samplesBasedir).resolve()
@@ -126,11 +129,11 @@ class SFZInstrument:
 
         # check if binary file has already been exported
 
-        binFilename = os.path.join(
+        self.binFilename = os.path.join(
             self.sfzFilename +"_" + platform_simple + ".bin"
         )
-        if os.path.exists(binFilename):
-            with open(binFilename, "rb") as f:
+        if os.path.exists(self.binFilename):
+            with open(self.binFilename, "rb") as f:
                 self.sampleFilename2channelCount, self.sampleFilename2address, self.sampleFilename2lengthSamples, self.binaryBlob = pickle.load(
                     f
                 )
@@ -152,48 +155,55 @@ class SFZInstrument:
             self.allSampleFilenames += [
                 str(s.resolve()) for s in list(Path(patch.samplesLoadPoint).rglob("*.flac"))
             ]
-            # self.computeShader.sampleBuffer.zeroInitialize() # NO LONGER NECESSARY
-            # load all the samples into a buffer
-            for sampleFilename in tqdm(self.allSampleFilenames):
-                # print("loading " + sampleFilename)
-
-                y, samplerate = librosa.load(
-                    sampleFilename,
-                    sr=SAMPLE_FREQUENCY * 4,  # because shader access is 16byte
-                )
-                # addr = self.computeShader.sampleBuffer.write(y)
-                # self.binaryBlob[startAddr : startAddr + len(y)] = y
-
-                if len(np.shape(y)) == 1:
-                    channelCount = 1
-                else:
-                    channelCount = np.shape(y)[1]
-
-                self.sampleFilename2channelCount[sampleFilename] = channelCount
-                for channel in range(channelCount):
-                    self.binaryBlob = np.append(self.binaryBlob, y, axis=0)
-                    sampleFilenameAndChannel = sampleFilename + "_" + str(channel)
-                    self.sampleFilename2address[sampleFilenameAndChannel] = startAddr
-                    self.sampleFilename2lengthSamples[sampleFilenameAndChannel] = len(y)
-                startAddr += len(y)
-
-            # save binary file for reloading
-            with open(binFilename, "wb+") as f:
-                pickle.dump(
-                    (
-                        self.sampleFilename2channelCount,
-                        self.sampleFilename2address,
-                        self.sampleFilename2lengthSamples,
-                        self.binaryBlob,
-                    ),
-                    f,
-                )
+            self.processSamples()
 
         ## save entire self for reloading
-        # with open(binFilename, "wb+") as f:
-        #    pkl.dump(self.sfzInst, f)
-
         self.loadSFZ(patch=patch)
+        
+    def processSamples(self):
+        startAddr = 0
+        # self.computeShader.sampleBuffer.zeroInitialize() # NO LONGER NECESSARY
+        # load all the samples into a buffer
+        for sampleFilename in tqdm(self.allSampleFilenames):
+            # this should probably not be in this library
+            # Read in a whole audio file:
+            y, samplerate = librosa.load(
+                sampleFilename,
+                sr=self.SAMPLE_FREQUENCY * 4,  # because shader access is 16byte
+            )
+
+            y, b = librosa.effects.trim(y)
+            
+            # stretch the audio file by a factor of 4 * targetSR / SR 
+            #y = cv2.resize(y,(0,self.CHANNELS),fx=4 * self.SAMPLE_FREQUENCY / sr , fy=0, interpolation = cv2.INTER_NEAREST)
+            # addr = self.computeShader.sampleBuffer.write(y)
+            # self.binaryBlob[startAddr : startAddr + len(y)] = y
+
+            if len(np.shape(y)) == 1:
+                channelCount = 1
+            else:
+                channelCount = np.shape(y)[1]
+
+            self.sampleFilename2channelCount[sampleFilename] = channelCount
+            for channel in range(channelCount):
+                self.binaryBlob = np.append(self.binaryBlob, y, axis=0)
+                sampleFilenameAndChannel = sampleFilename + "_" + str(channel)
+                self.sampleFilename2address[sampleFilenameAndChannel] = startAddr
+                self.sampleFilename2lengthSamples[sampleFilenameAndChannel] = len(y)
+            startAddr += len(y)
+
+        # save binary file for reloading
+        with open(self.binFilename, "wb+") as f:
+            pickle.dump(
+                (
+                    self.sampleFilename2channelCount,
+                    self.sampleFilename2address,
+                    self.sampleFilename2lengthSamples,
+                    self.binaryBlob,
+                ),
+                f,
+            )
+
 
     def preprocess(self, sfzFilename, replaceDict={}):
         print("processing file " + sfzFilename)
