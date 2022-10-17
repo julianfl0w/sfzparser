@@ -120,17 +120,27 @@ class SFZInstrument:
         CHANNELS,
         SAMPLE_FREQUENCY,
     ):
+        self.platform_simple = platform_simple
+        self.patch = patch
         self.CHANNELS = CHANNELS
         self.SAMPLE_FREQUENCY = SAMPLE_FREQUENCY
         self.sfzFilename = patch.sfzFilename
         self.sfzFilenameBasedir = os.path.dirname(patch.sfzFilename)
-        self.samplesBasedir = Path(patch.samplesBasedir).resolve()
+        self.samplesLoadPoint = Path(patch.samplesLoadPoint).resolve()
+
+        ## save entire self for reloading
+        self.loadSFZ(patch=patch)
+
+        self.readOrCreateBin()
+
+    def readOrCreateBin(self):
+
         # see if we have already converted the wavs to necessary binary format
 
         # check if binary file has already been exported
 
         self.binFilename = os.path.join(
-            self.sfzFilename +"_" + platform_simple + ".bin"
+            self.samplesLoadPoint, "_" + self.platform_simple + ".bin"
         )
         if os.path.exists(self.binFilename):
             with open(self.binFilename, "rb") as f:
@@ -150,16 +160,15 @@ class SFZInstrument:
             self.binaryBlob = np.zeros((0), dtype=np.float32)
 
             self.allSampleFilenames = [
-                str(s.resolve()) for s in list(Path(patch.samplesLoadPoint).rglob("*.wav"))
+                str(s.resolve())
+                for s in list(Path(self.patch.samplesLoadPoint).rglob("*.wav"))
             ]
             self.allSampleFilenames += [
-                str(s.resolve()) for s in list(Path(patch.samplesLoadPoint).rglob("*.flac"))
+                str(s.resolve())
+                for s in list(Path(self.patch.samplesLoadPoint).rglob("*.flac"))
             ]
             self.processSamples()
 
-        ## save entire self for reloading
-        self.loadSFZ(patch=patch)
-        
     def processSamples(self):
         startAddr = 0
         # self.computeShader.sampleBuffer.zeroInitialize() # NO LONGER NECESSARY
@@ -172,10 +181,10 @@ class SFZInstrument:
                 sr=self.SAMPLE_FREQUENCY * 4,  # because shader access is 16byte
             )
 
-            y, b = librosa.effects.trim(y)
-            
-            # stretch the audio file by a factor of 4 * targetSR / SR 
-            #y = cv2.resize(y,(0,self.CHANNELS),fx=4 * self.SAMPLE_FREQUENCY / sr , fy=0, interpolation = cv2.INTER_NEAREST)
+            y, b = librosa.effects.trim(y, top_db=25)
+
+            # stretch the audio file by a factor of 4 * targetSR / SR
+            # y = cv2.resize(y,(0,self.CHANNELS),fx=4 * self.SAMPLE_FREQUENCY / sr , fy=0, interpolation = cv2.INTER_NEAREST)
             # addr = self.computeShader.sampleBuffer.write(y)
             # self.binaryBlob[startAddr : startAddr + len(y)] = y
 
@@ -204,7 +213,6 @@ class SFZInstrument:
                 f,
             )
 
-
     def preprocess(self, sfzFilename, replaceDict={}):
         print("processing file " + sfzFilename)
         # read in the template sfz
@@ -217,7 +225,7 @@ class SFZInstrument:
             line = ogline.split("//")[0]
             for k, v in replaceDict.items():
                 line = line.replace(k, v)
-                
+
             # keep the comments
             if ogline.startswith("//"):
                 preProcessText += ogline
@@ -227,7 +235,9 @@ class SFZInstrument:
                 print(includeParts)
                 for i, includePart in enumerate(includeParts):
                     includePart = includePart.strip()
-                    includeFilename = eval(includePart.split(" ")[0]) # NO SPACES ALLOWED IN FILENAMES!
+                    includeFilename = eval(
+                        includePart.split(" ")[0]
+                    )  # NO SPACES ALLOWED IN FILENAMES!
                     includeFilename = os.path.join(
                         self.sfzFilenameBasedir, includeFilename
                     )
@@ -283,7 +293,7 @@ class SFZInstrument:
                 # resolve sample path
                 resolved = str(
                     Path(
-                        os.path.join(self.samplesBasedir, valueDict["sample"])
+                        os.path.join(self.samplesLoadPoint, valueDict["sample"])
                     ).resolve()
                 )
                 valueDict["sample"] = resolved
@@ -301,7 +311,17 @@ class SFZInstrument:
                 # print(json.dumps(valueDict, indent=2))
 
             elif sectionName == "control":
-                pass
+                for k, v in valueDict.items():
+                    if k == "default_path":
+                        v = v.replace("\\", os.sep)
+                        self.patch.samplesLoadPoint = os.path.join(
+                            self.sfzFilenameBasedir, v
+                        )
+                        self.patch.samplesLoadPoint = os.path.join(
+                            self.sfzFilenameBasedir, v
+                        )
+                        self.samplesLoadPoint = os.path.join(self.sfzFilenameBasedir, v)
+                        self.samplesLoadPoint = os.path.join(self.sfzFilenameBasedir, v)
 
             elif sectionName == "comment":
                 pass
