@@ -178,7 +178,7 @@ class SFZInstrument:
             # Read in a whole audio file:
             y, samplerate = librosa.load(
                 sampleFilename,
-                sr=self.SAMPLE_FREQUENCY * 4,  # because shader access is 16byte
+                sr=self.SAMPLE_FREQUENCY,
             )
 
             y, b = librosa.effects.trim(y, top_db=25)
