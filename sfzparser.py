@@ -317,10 +317,6 @@ class SFZInstrument:
                         self.patch.samplesLoadPoint = os.path.join(
                             self.sfzFilenameBasedir, v
                         )
-                        self.patch.samplesLoadPoint = os.path.join(
-                            self.sfzFilenameBasedir, v
-                        )
-                        self.samplesLoadPoint = os.path.join(self.sfzFilenameBasedir, v)
                         self.samplesLoadPoint = os.path.join(self.sfzFilenameBasedir, v)
 
             elif sectionName == "comment":
