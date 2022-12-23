@@ -119,7 +119,7 @@ class SFZInstrument:
         SAMPLE_BUFFER_SIZE_SAMPLES,
         CHANNELS,
         SAMPLE_FREQUENCY,
-        trimDB = 25,
+        trimDB = 40,
     ):
         self.trimDB = trimDB
         self.platform_simple = platform_simple
@@ -185,6 +185,9 @@ class SFZInstrument:
 
             y, b = librosa.effects.trim(y, top_db=self.trimDB)
 
+            #normalize
+            y = y/max(y)
+            
             # stretch the audio file by a factor of 4 * targetSR / SR
             # y = cv2.resize(y,(0,self.CHANNELS),fx=4 * self.SAMPLE_FREQUENCY / sr , fy=0, interpolation = cv2.INTER_NEAREST)
             # addr = self.computeShader.sampleBuffer.write(y)
