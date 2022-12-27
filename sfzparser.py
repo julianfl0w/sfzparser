@@ -116,7 +116,6 @@ class SFZInstrument:
         self,
         patch,
         platform_simple,
-        SAMPLE_BUFFER_SIZE_SAMPLES,
         CHANNELS,
         SAMPLE_FREQUENCY,
         trimDB = 40,
