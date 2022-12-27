@@ -16,6 +16,7 @@ import json
 import librosa
 from pedalboard.io import AudioFile
 import cv2
+from munch import DefaultMunch
 
 SFZ_NOTE_LETTER_OFFSET = {"a": 9, "b": 11, "c": 0, "d": 2, "e": 4, "f": 5, "g": 7}
 
@@ -262,6 +263,41 @@ class SFZInstrument:
 
         return preProcessText
 
+    def inRegion(self, msg, region, dev):
+
+        #randUnity = random.random()
+        #if self.interface.DEBUG:
+        #    randUnity = 0.5
+        randUnity = 0.5
+        for k, v in region.items():
+            if k == "lovel" and msg.velocity < eval(region["lovel"]):
+                return False
+            if k == "hivel" and msg.velocity > eval(region["hivel"]):
+                return False
+            if k == "lorand" and randUnity < eval(region["lorand"]):
+                return False
+            if k == "hirand" and randUnity > eval(region["hirand"]):
+                return False
+
+            if "_hicc" in k:
+                ccNum = int(k.split("_hicc")[1])
+                if dev.control[ccNum] > int(v):
+                    return False
+
+            elif "_locc" in k:
+                ccNum = int(k.split("_locc")[1])
+                if dev.control[ccNum] < int(v):
+                    return False
+            # if k.startswith("xfin_hicc"):
+            #    return False
+            # if k.startswith("xfin_locc"):
+            #    return False
+            # if k.startswith("xfout_hicc"):
+            #    return False
+            # if k.startswith("xfout_locc"):
+            #    return False
+        return True
+    
     def loadSFZ(self, patch, depth=0):
         sfzFilename = patch.sfzFilename
         print("loading from " + sfzFilename)
@@ -302,7 +338,7 @@ class SFZInstrument:
                 )
                 valueDict["sample"] = resolved
 
-                self.regions += [valueDict]
+                self.regions += [DefaultMunch.fromDict(valueDict)]
 
             elif sectionName == "global":
                 self.globalDict = valueDict
@@ -333,14 +369,6 @@ class SFZInstrument:
             else:
                 raise Exception("Unknown sfz header '" + str(sectionName) + "'")
 
-        # attach salient regions to their midi note
-        self.note2regions = []
-        for i in range(128):
-            thisNoteRegions = []
-            for region in self.regions:
-                if SFZInstrument.noteInSfzRegion(i, region):
-                    thisNoteRegions += [region]
-            self.note2regions += [thisNoteRegions]
 
     def noteInSfzRegion(noteNo, region):
         inRegion = True
