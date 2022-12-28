@@ -17,6 +17,7 @@ import librosa
 from pedalboard.io import AudioFile
 import cv2
 from munch import DefaultMunch
+from pedalboard import *
 
 SFZ_NOTE_LETTER_OFFSET = {"a": 9, "b": 11, "c": 0, "d": 2, "e": 4, "f": 5, "g": 7}
 
@@ -120,7 +121,9 @@ class SFZInstrument:
         CHANNELS,
         SAMPLE_FREQUENCY,
         trimDB = 40,
+        normalize = True,
     ):
+        self.normalize= normalize
         self.trimDB = trimDB
         self.platform_simple = platform_simple
         self.patch = patch
@@ -173,6 +176,10 @@ class SFZInstrument:
 
     def processSamples(self):
         startAddr = 0
+        
+        board = Pedalboard([
+            Compressor(threshold_db=self.patch.compressDB, ratio=self.patch.compressRate),
+        ])
         # self.computeShader.sampleBuffer.zeroInitialize() # NO LONGER NECESSARY
         # load all the samples into a buffer
         for sampleFilename in tqdm(self.allSampleFilenames):
@@ -183,10 +190,13 @@ class SFZInstrument:
                 sr=self.SAMPLE_FREQUENCY,
             )
 
-            y, b = librosa.effects.trim(y, top_db=self.trimDB)
-
             #normalize
-            y = y/max(y)
+            if self.normalize:
+                y = y/max(y)
+                y = board(y, self.SAMPLE_FREQUENCY)
+                y = y/max(y)
+            
+            y, b = librosa.effects.trim(y, top_db=self.trimDB)
             
             # stretch the audio file by a factor of 4 * targetSR / SR
             # y = cv2.resize(y,(0,self.CHANNELS),fx=4 * self.SAMPLE_FREQUENCY / sr , fy=0, interpolation = cv2.INTER_NEAREST)
@@ -370,7 +380,7 @@ class SFZInstrument:
                 raise Exception("Unknown sfz header '" + str(sectionName) + "'")
 
 
-    def noteInSfzRegion(noteNo, region):
+    def noteInSfzRegion(self, noteNo, region):
         inRegion = True
         if "lokey" in region.keys() and noteNo < sfz_note_to_midi_key(region["lokey"]):
             inRegion = False
